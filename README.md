@@ -11,17 +11,17 @@ Currently it offers two functions:
 
 This feature allows you to analyze an existing instruction of a declarative agent living within an instruction.txt file.
 
-![Analyze Instructions](assets/Agent Instructor Analysis.png)
+![Analyze Instructions](<assets/Agent Instructor Analysis.png>)
 
 **Generate Instructions**:
 
 This feature allows you to generate instructions for your declarative agent.
 
-![Generate Instructions](assets/Agent Instructor Generation 1.png)
+![Generate Instructions](<assets/Agent Instructor Generation 1.png>)
 
 After you added your basic description, the extension will use an LLM to generate instructions and paste those into your instruction.txt file.
 
-![Generate Instructions](assets/Agent Instructor Generation 2.png)
+![Generate Instructions](<assets/Agent Instructor Generation 2.png>)
 
 ## Requirements
 
@@ -36,7 +36,7 @@ Before you can use this extension you need to configure the extension in your VS
 - Max Tokens
   - Maximum number of tokens to generate in the response
 
-![Generate Instructions](assets/Agent Instructor Settings.png)
+![Settings](<assets/Agent Instructor Settings.png>)
 
 ## Known Issues
 
