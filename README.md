@@ -38,13 +38,12 @@ Before you can use this extension you need to configure the extension in your VS
 
 ![Settings](<assets/Agent Instructor Settings.png>)
 
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
 ## Release Notes
 
 ### 0.0.1
 
 Initial preview release of the Agent Instructor VS Code extension
 
+## Known Issues
+
+If you encounter any issues please leave a new issue
