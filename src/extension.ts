@@ -24,10 +24,10 @@ interface LLMConfig {
 async function sendLLMRequest(text: string, config: LLMConfig) {
   console.log("Sending request to LLM endpoint...");
   console.log("LLM Config:", config);
-  
+
   let url: string;
   let headers: Record<string, string> = {};
-  
+
   if (config.endpointType === 'azure') {
     url = config.endpointUrl;
     headers['api-key'] = config.apiKey;
@@ -37,7 +37,7 @@ async function sendLLMRequest(text: string, config: LLMConfig) {
     headers['Authorization'] = `Bearer ${config.apiKey}`;
     headers['Content-Type'] = 'application/json';
   }
-  
+
   console.log("Request URL:", url);
   console.log("Request Headers:", headers);
 
@@ -58,30 +58,20 @@ async function sendLLMRequest(text: string, config: LLMConfig) {
   return axios.post(url, payload, { headers });
 }
 
-// Generate HTML content for the webview panel with improved styling
+// Generate HTML content for the webview panel.
+// Ambiguous phrases and suggestions are shown side by side in a single table.
 function getWebviewContent(analysis: AnalysisData): string {
-  // Render corrections as clickable buttons.
-  const correctionsHtml = (analysis.corrections && analysis.corrections.length > 0) ? `
-    <h2>Corrections</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Ambiguous Phrase</th>
-          <th>Suggestion</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-      ${analysis.corrections.map((item, index) => `
-        <tr>
-          <td>${item.phrase}</td>
-          <td>${item.suggestion}</td>
-          <td><button onclick="handleCorrectionClick(${index})">Apply Correction</button></td>
-        </tr>
-      `).join('')}
-      </tbody>
-    </table>
-  ` : `<h2>No corrections provided.</h2>`;
+  console.log("Using new getWebviewContent with single table layout...");
+
+  const tableRows = (analysis.corrections && analysis.corrections.length > 0)
+    ? analysis.corrections.map((item, index) => `
+      <tr>
+        <td>${item.phrase}</td>
+        <td>${item.suggestion}</td>
+        <td><button onclick="handleCorrectionClick(${index})">Apply Correction</button></td>
+      </tr>
+    `).join('')
+    : `<tr><td colspan="3">No corrections provided.</td></tr>`;
 
   return `
   <!DOCTYPE html>
@@ -114,18 +104,18 @@ function getWebviewContent(analysis: AnalysisData): string {
         }
         .container {
           display: grid;
-          grid-template-rows: auto auto 1fr auto;
+          grid-template-rows: auto auto 1fr;
           gap: 20px;
           width: 100%;
           max-width: 1200px;
           margin: 0 auto;
         }
-        h1, h2, h3 {
+        h1, h2 {
           color: var(--header);
           margin: 0.5em 0;
         }
         table {
-          width: 90%;
+          width: 100%;
           border-collapse: collapse;
           margin-bottom: 1em;
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
@@ -135,6 +125,7 @@ function getWebviewContent(analysis: AnalysisData): string {
         th, td {
           padding: 10px 15px;
           font-size: 0.95em;
+          border: 1px solid var(--border);
         }
         th {
           background-color: var(--table-header);
@@ -151,41 +142,21 @@ function getWebviewContent(analysis: AnalysisData): string {
           cursor: pointer;
           border-radius: 3px;
           transition: background-color 0.2s ease-in-out;
-          margin: 2px 0;
         }
         button:hover {
           background-color: var(--primary-hover);
         }
-        ul {
-          list-style: none;
-          padding: 0;
-          margin: 0;
-          font-size: 0.9em;
-        }
         #chartContainer {
-          width: 90%;
-          height: 30vh;
-          margin-top: 1em;
-        }
-        /* Responsive grid layout for details */
-        #detailsContainer {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          width: 90%;
-          margin-top: 1em;
-        }
-        .detailCard {
-          background-color: var(--table-header);
-          padding: 15px;
-          border-radius: 5px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          width: 100%;
+          height: 300px;
         }
       </style>
     </head>
     <body>
       <div class="container">
         <h1>Analysis Result</h1>
+
+        <!-- Summary Section -->
         <div class="summary">
           <h2>Summary</h2>
           <table>
@@ -207,37 +178,41 @@ function getWebviewContent(analysis: AnalysisData): string {
             </tbody>
           </table>
         </div>
+
+        <!-- Chart Section -->
         <div class="chart">
           <h2>Metrics Chart</h2>
           <div id="chartContainer">
             <canvas id="analysisChart"></canvas>
           </div>
         </div>
-        <div id="detailsContainer">
-          <div class="detailCard">
-            <h3>Ambiguous Sections</h3>
-            <ul>
-              ${(analysis.corrections && analysis.corrections.length > 0) 
-                ? analysis.corrections.map((item, index) => `<li><button onclick="handleCorrectionClick(${index})">${item.phrase}</button></li>`).join('')
-                : '<li>None</li>'}
-            </ul>
-          </div>
-          <div class="detailCard">
-            <h3>Suggestions</h3>
-            <ul>
-              ${(analysis.corrections && analysis.corrections.length > 0) 
-                ? analysis.corrections.map((item, index) => `<li>${item.suggestion}</li>`).join('')
-                : '<li>None</li>'}
-            </ul>
-          </div>
+
+        <!-- Corrections Table -->
+        <div class="details">
+          <h2>Ambiguous Phrases and Suggestions</h2>
+          <p>Each row shows the ambiguous phrase alongside its suggested replacement. Click "Apply Correction" to update your document.</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Ambiguous Phrase</th>
+                <th>Suggested Replacement</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
         </div>
       </div>
+
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       <script>
         const vscode = acquireVsCodeApi();
         function handleCorrectionClick(index) {
           vscode.postMessage({ command: 'applyCorrection', index: index });
         }
+
         (function() {
           const ctx = document.getElementById('analysisChart').getContext('2d');
           new Chart(ctx, {
@@ -284,7 +259,6 @@ function getWebviewContent(analysis: AnalysisData): string {
   </html>
   `;
 }
-
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("Extension activated");
@@ -351,6 +325,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         panel.webview.html = getWebviewContent(analysisData);
 
+        // Listen for messages from the webview
         panel.webview.onDidReceiveMessage(async message => {
           if (message.command === 'applyCorrection') {
             const correction = corrections[message.index];

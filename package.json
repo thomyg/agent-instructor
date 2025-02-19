@@ -10,7 +10,7 @@
   "activationEvents": [
     "onCommand:agentInstructor.analyze"
   ],
-  "main": "./dist/extension.js",
+  "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
