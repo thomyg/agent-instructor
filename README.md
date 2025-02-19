@@ -1,38 +1,42 @@
-# agent-instructor README
+# Agent Instructor 
 
-This is the README for your extension "agent-instructor". After writing up a brief description, we recommend including the following sections.
+**A VS Code extension to manage agent instructions**
 
 ## Overview
 
-Here is an overview of the "agent-instructor" extension:
+The **Agent Istructor** extension helps you create and manage instructions for declarative agents. 
+Currently it offers two functions:
 
-![Overview](assets/preview.jpg)
+**Analyze Instructions**:
 
+This feature allows you to analyze an existing instruction of a declarative agent living within an instruction.txt file.
 
-## Features
+![Analyze Instructions](assets/Agent Instructor Analysis.png)
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+**Generate Instructions**:
 
-For example if there is an image subfolder under your extension project workspace:
+This feature allows you to generate instructions for your declarative agent.
 
-\!\[feature X\]\(images/feature-x.png\)
+![Generate Instructions](assets/Agent Instructor Generation 1.png)
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+After you added your basic description, the extension will use an LLM to generate instructions and paste those into your instruction.txt file.
+
+![Generate Instructions](assets/Agent Instructor Generation 2.png)
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+Before you can use this extension you need to configure the extension in your VS Code settings (File - Preferences - Settings - Agent Instructor Configuration). In the settings you need to fill in the following configuration settings:
 
-## Extension Settings
+- API Key
+  - The API key for your LLM service.
+- Endpoint Type
+  - Choose the endpoint type: 'openai' for regular OpenAI or 'azure' for Azure OpenAI.
+- Endpoint URL
+  - The endpoint URL for your LLM API. For Azure OpenAI, provide the full URL (including deployment ID and API version). For OpenAI, leave blank to use the default endpoint.
+- Max Tokens
+  - Maximum number of tokens to generate in the response
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+![Generate Instructions](assets/Agent Instructor Settings.png)
 
 ## Known Issues
 
@@ -40,39 +44,7 @@ Calling out known issues can help limit users opening duplicate issues against y
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.0.1
 
-### 1.0.0
+Initial preview release of the Agent Instructor VS Code extension
 
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**

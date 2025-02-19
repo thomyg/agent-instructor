@@ -18,16 +18,17 @@ interface LLMConfig {
   endpointType: 'openai' | 'azure';
   endpointUrl: string;
   apiKey: string;
+  maxTokens: number;
 }
 
-// Send a request to the configured LLM endpoint
+// Sends a request to the configured LLM endpoint
 async function sendLLMRequest(text: string, config: LLMConfig) {
   console.log("Sending request to LLM endpoint...");
   console.log("LLM Config:", config);
-
+  
   let url: string;
   let headers: Record<string, string> = {};
-
+  
   if (config.endpointType === 'azure') {
     url = config.endpointUrl;
     headers['api-key'] = config.apiKey;
@@ -37,7 +38,7 @@ async function sendLLMRequest(text: string, config: LLMConfig) {
     headers['Authorization'] = `Bearer ${config.apiKey}`;
     headers['Content-Type'] = 'application/json';
   }
-
+  
   console.log("Request URL:", url);
   console.log("Request Headers:", headers);
 
@@ -52,17 +53,15 @@ async function sendLLMRequest(text: string, config: LLMConfig) {
       { role: 'user', content: text }
     ],
     temperature: 0.7,
-    max_tokens: 200
+    max_tokens: config.maxTokens
   };
 
   return axios.post(url, payload, { headers });
 }
 
-// Generate HTML content for the webview panel.
-// Ambiguous phrases and suggestions are shown side by side in a single table.
+// Generates HTML content for the webview panel with a refined, modern look.
+// The corrections are displayed in a single table with three columns.
 function getWebviewContent(analysis: AnalysisData): string {
-  console.log("Using new getWebviewContent with single table layout...");
-
   const tableRows = (analysis.corrections && analysis.corrections.length > 0)
     ? analysis.corrections.map((item, index) => `
       <tr>
@@ -80,8 +79,7 @@ function getWebviewContent(analysis: AnalysisData): string {
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>Agent Instructor Analysis Result</title>
-      <!-- Modern font -->
-      <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css?family=Roboto:400,500&display=swap" rel="stylesheet" />
       <style>
         :root {
           --background: #1e1e1e;
@@ -89,7 +87,7 @@ function getWebviewContent(analysis: AnalysisData): string {
           --primary: #007acc;
           --primary-hover: #005a9e;
           --header: #569cd6;
-          --table-header: #252526;
+          --table-header-bg: linear-gradient(90deg, #252526, #2d2d30);
           --border: #3c3c3c;
         }
         * { box-sizing: border-box; }
@@ -104,31 +102,57 @@ function getWebviewContent(analysis: AnalysisData): string {
         }
         .container {
           display: grid;
-          grid-template-rows: auto auto 1fr;
+          grid-template-rows: auto 1fr;
           gap: 20px;
           width: 100%;
-          max-width: 1200px;
+          height: 100%;
+          max-width: 1600px;
           margin: 0 auto;
+        }
+        .summary {
+          grid-row: 1;
+          width: 100%;
+        }
+        .content-grid {
+          grid-row: 2;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          height: 100%;
+        }
+        .chart {
+          height: 100%;
+          padding: 20px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 8px;
+        }
+        .details {
+          height: 100%;
+          padding: 20px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 8px;
+          overflow-y: auto;
         }
         h1, h2 {
           color: var(--header);
           margin: 0.5em 0;
+          text-align: center;
         }
         table {
           width: 100%;
           border-collapse: collapse;
           margin-bottom: 1em;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          border-radius: 5px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+          border-radius: 8px;
           overflow: hidden;
         }
         th, td {
-          padding: 10px 15px;
-          font-size: 0.95em;
+          padding: 12px 16px;
+          font-size: 1em;
           border: 1px solid var(--border);
         }
         th {
-          background-color: var(--table-header);
+          background: var(--table-header-bg);
           text-align: left;
         }
         tr:nth-child(even) {
@@ -137,28 +161,30 @@ function getWebviewContent(analysis: AnalysisData): string {
         button {
           background-color: var(--primary);
           border: none;
-          padding: 8px 12px;
+          padding: 10px 16px;
           color: white;
           cursor: pointer;
-          border-radius: 3px;
-          transition: background-color 0.2s ease-in-out;
+          border-radius: 5px;
+          transition: background-color 0.3s ease;
         }
         button:hover {
           background-color: var(--primary-hover);
         }
+        p {
+          margin: 0.5em 0 1em;
+          font-size: 1em;
+        }
         #chartContainer {
           width: 100%;
-          height: 300px;
+          height: calc(100% - 60px);
+          margin: 0 auto;
         }
       </style>
     </head>
     <body>
       <div class="container">
-        <h1>Analysis Result</h1>
-
-        <!-- Summary Section -->
         <div class="summary">
-          <h2>Summary</h2>
+          <h1>Agent Instructor Analysis</h1>
           <table>
             <thead>
               <tr>
@@ -178,41 +204,39 @@ function getWebviewContent(analysis: AnalysisData): string {
             </tbody>
           </table>
         </div>
-
-        <!-- Chart Section -->
-        <div class="chart">
-          <h2>Metrics Chart</h2>
-          <div id="chartContainer">
-            <canvas id="analysisChart"></canvas>
+        
+        <div class="content-grid">
+          <div class="chart">
+            <h2>Metrics Chart</h2>
+            <div id="chartContainer">
+              <canvas id="analysisChart"></canvas>
+            </div>
+          </div>
+          
+          <div class="details">
+            <h2>Ambiguous Phrases &amp; Suggested Replacements</h2>
+            <p>Compare each ambiguous phrase with its suggested replacement. Click "Apply Correction" to update your document.</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Ambiguous Phrase</th>
+                  <th>Suggested Replacement</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRows}
+              </tbody>
+            </table>
           </div>
         </div>
-
-        <!-- Corrections Table -->
-        <div class="details">
-          <h2>Ambiguous Phrases and Suggestions</h2>
-          <p>Each row shows the ambiguous phrase alongside its suggested replacement. Click "Apply Correction" to update your document.</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Ambiguous Phrase</th>
-                <th>Suggested Replacement</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRows}
-            </tbody>
-          </table>
-        </div>
       </div>
-
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       <script>
         const vscode = acquireVsCodeApi();
         function handleCorrectionClick(index) {
           vscode.postMessage({ command: 'applyCorrection', index: index });
         }
-
         (function() {
           const ctx = document.getElementById('analysisChart').getContext('2d');
           new Chart(ctx, {
@@ -260,6 +284,36 @@ function getWebviewContent(analysis: AnalysisData): string {
   `;
 }
 
+// Add this function before the activate function
+async function generateInstructions(config: LLMConfig, agentDescription: string): Promise<string> {
+  const url = config.endpointType === 'azure' ? config.endpointUrl : 'https://api.openai.com/v1/chat/completions';
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(config.endpointType === 'azure' 
+      ? { 'api-key': config.apiKey }
+      : { 'Authorization': `Bearer ${config.apiKey}` })
+  };
+
+  const payload = {
+    model: 'gpt-4',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an AI assistant that generates clear and precise instructions for AI agents. Generate a detailed set of instructions that demonstrates good practices for agent instruction writing.'
+      },
+      {
+        role: 'user',
+        content: `Generate a comprehensive set of instructions for an AI agent with the following description:\n\n${agentDescription}\n\nProvide clear, specific, and unambiguous instructions that will guide this agent in performing its tasks effectively.`
+      }
+    ],
+    temperature: 0.7,
+    max_tokens: config.maxTokens
+  };
+
+  const response = await axios.post(url, payload, { headers });
+  return response.data.choices[0].message.content;
+}
+
 export function activate(context: vscode.ExtensionContext) {
   console.log("Extension activated");
 
@@ -288,7 +342,8 @@ export function activate(context: vscode.ExtensionContext) {
     const llmConfig: LLMConfig = {
       endpointType: config.get('endpointType', 'openai'),
       endpointUrl: config.get('endpointUrl', ''),
-      apiKey: config.get('apiKey', '')
+      apiKey: config.get('apiKey', ''),
+      maxTokens: config.get('maxTokens', 1000)
     };
 
     vscode.window.withProgress({
@@ -325,7 +380,6 @@ export function activate(context: vscode.ExtensionContext) {
 
         panel.webview.html = getWebviewContent(analysisData);
 
-        // Listen for messages from the webview
         panel.webview.onDidReceiveMessage(async message => {
           if (message.command === 'applyCorrection') {
             const correction = corrections[message.index];
@@ -374,6 +428,77 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   context.subscriptions.push(disposable);
+
+  // Update the generate command registration in the activate function
+  let generateDisposable = vscode.commands.registerCommand('agentInstructor.generate', async () => {
+    const config = vscode.workspace.getConfiguration('agentInstructor');
+    const llmConfig: LLMConfig = {
+      endpointType: config.get('endpointType', 'openai'),
+      endpointUrl: config.get('endpointUrl', ''),
+      apiKey: config.get('apiKey', ''),
+      maxTokens: config.get('maxTokens', 1000)
+    };
+
+    // Get the active editor
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showWarningMessage('No active editor found. Please open instruction.txt');
+      return;
+    }
+
+    const fileName = editor.document.fileName;
+    if (!fileName.endsWith('instruction.txt')) {
+      vscode.window.showWarningMessage('Please open instruction.txt before generating instructions.');
+      return;
+    }
+
+    // Get agent description from user
+    const agentDescription = await vscode.window.showInputBox({
+      prompt: 'Describe the AI agent (its purpose, capabilities, and constraints)',
+      placeHolder: 'e.g., A coding assistant that helps developers write and review code...',
+      ignoreFocusOut: true
+    });
+
+    if (!agentDescription) {
+      vscode.window.showInformationMessage('Operation cancelled - no agent description provided.');
+      return;
+    }
+
+    vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Generating instructions...",
+      cancellable: false
+    }, async () => {
+      try {
+        const instructions = await generateInstructions(llmConfig, agentDescription);
+        
+        // Get current content
+        const currentContent = editor.document.getText();
+        
+        // Add new instructions with a separator if there's existing content
+        const newContent = currentContent 
+          ? `${currentContent}\n\n---\n\nAgent Description: ${agentDescription}\n\n${instructions}`
+          : `Agent Description: ${agentDescription}\n\n${instructions}`;
+        
+        // Replace entire document content
+        const fullRange = new vscode.Range(
+          editor.document.positionAt(0),
+          editor.document.positionAt(editor.document.getText().length)
+        );
+        
+        await editor.edit(editBuilder => {
+          editBuilder.replace(fullRange, newContent);
+        });
+        
+        vscode.window.showInformationMessage('Instructions generated and added to instruction.txt');
+      } catch (error: any) {
+        console.error("Error generating instructions:", error);
+        vscode.window.showErrorMessage(`Failed to generate instructions: ${error.message}`);
+      }
+    });
+  });
+
+  context.subscriptions.push(generateDisposable);
 }
 
 export function deactivate() {

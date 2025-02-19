@@ -15,7 +15,11 @@
     "commands": [
       {
         "command": "agentInstructor.analyze",
-        "title": "Analyze Agent Instructions"
+        "title": "Agent Instructor: Analyze Instructions"
+      },
+      {
+        "command": "agentInstructor.generate",
+        "title": "Agent Instructor: Generate Instructions"
       }
     ],
     "configuration": {
@@ -37,6 +41,13 @@
           "type": "string",
           "default": "",
           "description": "The API key for your LLM service."
+        },
+        "agentInstructor.maxTokens": {
+          "type": "number",
+          "default": 1000,
+          "description": "Maximum number of tokens to generate in the response",
+          "minimum": 1,
+          "maximum": 4096
         }
       }
     }
