@@ -1,6 +1,7 @@
 # Agent Instructor 
 
-**A VS Code extension to manage agent instructions**
+| **A VS Code extension to manage declarative agent instructions**  |  ![Analyze Instructions](<assets/Agent Instructor.jpeg>) |
+|---|---|
 
 ## Overview
 
