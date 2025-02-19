@@ -1,7 +1,11 @@
-# Agent Instructor 
+<h1 align="center">
+  <a href="(https://github.com/stephanbisser/agent-instructor">
+    <img alt="Agent Istructor" src="./assets/Agent Instructor.jpeg" height="78">
+  </a>
+  <br>Agent Istructor<br>
+</h1>
 
-| **A VS Code extension to manage declarative agent instructions**  |  ![Analyze Instructions](<assets/Agent Instructor.jpeg>) |
-|---|---|
+ **A VS Code extension to manage declarative agent instructions**
 
 ## Overview
 
