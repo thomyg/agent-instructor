@@ -4,6 +4,10 @@
   "description": "A VS Code extension to analyze agent instructions.",
   "version": "0.0.1",
   "publisher": "Stephan-Bisser",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stephanbisser/agent-instructor.git"
+  },
   "engines": {
     "vscode": "^1.60.0"
   },
