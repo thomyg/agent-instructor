@@ -12,13 +12,13 @@
 The **Agent Istructor** extension helps you create and manage instructions for declarative agents. 
 Currently it offers two functions:
 
-**Agent Instructor: Analyze Instructions**:
+**Agent Instructor: Analyze Instructions**
 
 This feature allows you to analyze an existing instruction of a declarative agent living within an instruction.txt file.
 
 ![Analyze Instructions](<./assets/Agent-Instructor-Analysis.png>)
 
-**Agent Instructor: Generate Instructions**:
+**Agent Instructor: Generate Instructions**
 
 This feature allows you to generate instructions for your declarative agent.
 
