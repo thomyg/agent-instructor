@@ -2,7 +2,7 @@
   "name": "agent-instructor",
   "displayName": "Agent Instructor",
   "description": "A VS Code extension to analyze agent instructions.",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "publisher": "Stephan-Bisser",
   "repository": {
     "type": "git",
