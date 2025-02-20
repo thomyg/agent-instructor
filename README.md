@@ -29,9 +29,7 @@ Creates comprehensive instructions for new agents:
 - Maintains existing content when adding new instructions
 - Supports multiple instruction sets per file
 
-![Generate Instructions](./assets/Agent-Instructor-Generation-1.png)
-
-![Generate Instructions](./assets/Agent-Instructor-Generation-2.png)
+![Generate Instructions](./assets/generate-instructions-demo.gif)
 
 ## Installation
 
