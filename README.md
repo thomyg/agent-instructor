@@ -16,7 +16,7 @@ Currently it offers two functions:
 
 This feature allows you to analyze an existing instruction of a declarative agent living within an instruction.txt file.
 
-![Analyze Instructions](<assets/Agent-Instructor-Analysis.png>)
+![Analyze Instructions](<./assets/Agent-Instructor-Analysis.png>)
 
 **Generate Instructions**:
 
