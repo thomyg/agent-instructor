@@ -3,7 +3,7 @@
   "displayName": "Agent Instructor",
   "description": "A VS Code extension to analyze agent instructions.",
   "version": "0.0.1",
-  "publisher": "your-publisher-name",
+  "publisher": "Stephan-Bisser",
   "engines": {
     "vscode": "^1.60.0"
   },
