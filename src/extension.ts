@@ -21,8 +21,68 @@ interface LLMConfig {
   maxTokens: number;
 }
 
+// Response shapes for chat completions
+interface ChatCompletionResponseChoice {
+  message: { content: string };
+}
+interface ChatCompletionResponse {
+  choices: ChatCompletionResponseChoice[];
+}
+
+// NEW: Types for Copilot Connectors
+interface CopilotConnector {
+  id: string;
+  name?: string;
+  description?: string;
+  state?: string;
+}
+
+// Graph connections response
+interface GraphConnectionsResponse {
+  value: any[];
+}
+
+// App-only Graph auth config and secret key
+const GRAPH_SECRET_KEY = 'agentInstructor.graph.clientSecret';
+interface GraphClientConfig {
+  tenantId: string;
+  clientId: string;
+}
+interface TokenResponse {
+  token_type: string;
+  expires_in: number;
+  access_token: string;
+}
+
+function getGraphClientConfig(): GraphClientConfig {
+  const cfg = vscode.workspace.getConfiguration('agentInstructor');
+  return {
+    tenantId: cfg.get('graph.tenantId', ''),
+    clientId: cfg.get('graph.clientId', '')
+  };
+}
+
+async function getAppOnlyAccessToken(context: vscode.ExtensionContext): Promise<string> {
+  const { tenantId, clientId } = getGraphClientConfig();
+  const clientSecret = await context.secrets.get(GRAPH_SECRET_KEY);
+  if (!tenantId || !clientId || !clientSecret) {
+    throw new Error('App-only auth not configured. Set tenantId, clientId in settings and client secret in SecretStorage.');
+  }
+  const tokenUrl = `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`;
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    scope: 'https://graph.microsoft.com/.default',
+    grant_type: 'client_credentials'
+  });
+  const res = await axios.post<TokenResponse>(tokenUrl, body.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+  });
+  return res.data.access_token;
+}
+
 // Sends a request to the configured LLM endpoint
-async function sendLLMRequest(text: string, config: LLMConfig) {
+async function sendLLMRequest(text: string, config: LLMConfig): Promise<{ data: ChatCompletionResponse }> {
   console.log("Sending request to LLM endpoint...");
   console.log("LLM Config:", config);
   
@@ -56,7 +116,7 @@ async function sendLLMRequest(text: string, config: LLMConfig) {
     max_tokens: config.maxTokens
   };
 
-  return axios.post(url, payload, { headers });
+  return axios.post<ChatCompletionResponse>(url, payload, { headers }) as unknown as Promise<{ data: ChatCompletionResponse }>;
 }
 
 // Generates HTML content for the webview panel with a refined, modern look.
@@ -284,6 +344,151 @@ function getWebviewContent(analysis: AnalysisData): string {
   `;
 }
 
+// NEW: Fetch Copilot connectors (using Microsoft Graph external connections as a baseline)
+async function fetchCopilotConnectors(accessToken: string): Promise<CopilotConnector[]> {
+  try {
+    const headers = { Authorization: `Bearer ${accessToken}` };
+    // Try v1.0 first
+    const url = 'https://graph.microsoft.com/v1.0/external/connections';
+    const res = await axios.get<GraphConnectionsResponse>(url, { headers });
+    const value = res.data?.value ?? [];
+    return value.map((c: any) => ({
+      id: c.id,
+      name: c.name || c.displayName,
+      description: c.description,
+      state: c.state || c.status
+    }));
+  } catch (err: any) {
+    // Fall back to /beta if v1.0 fails
+    try {
+      const headers = { Authorization: `Bearer ${accessToken}` };
+      const betaUrl = 'https://graph.microsoft.com/beta/external/connections';
+      const res = await axios.get<GraphConnectionsResponse>(betaUrl, { headers });
+      const value = res.data?.value ?? [];
+      return value.map((c: any) => ({
+        id: c.id,
+        name: c.name || c.displayName,
+        description: c.description,
+        state: c.state || c.status
+      }));
+    } catch (inner: any) {
+      throw inner;
+    }
+  }
+}
+
+// NEW: Build the webview for Copilot Connectors list with search and copy-to-clipboard
+function getCopilotConnectorsWebview(connectors: CopilotConnector[], hasAppOnly: boolean, errorText?: string): string {
+  const rows = connectors.length
+    ? connectors.map((c, i) => `
+      <tr data-name="${(c.name || '').toLowerCase()}" data-id="${c.id.toLowerCase()}">
+        <td><div class="name">${c.name || '(no name)'}<div class="desc">${c.description || ''}</div></div></td>
+        <td><code>${c.id}</code></td>
+        <td><span class="badge">${c.state || ''}</span></td>
+        <td><button class="copy-btn" data-idx="${i}">Copy ID</button></td>
+      </tr>
+    `).join('')
+    : `<tr><td colspan="4">${hasAppOnly ? 'No connectors found.' : 'Configure app-only (set secret) to list your Copilot connectors.'}</td></tr>`;
+
+  return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Copilot Connectors</title>
+    <style>
+      :root { --bg:#1e1e1e; --fg:#d4d4d4; --muted:#a0a0a0; --primary:#007acc; --primary-hover:#005a9e; --border:#2a2a2a; }
+      *{box-sizing:border-box}
+      body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font-family:Segoe UI, Roboto, sans-serif}
+      header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+      h1{font-size:18px;margin:0 8px 0 0}
+      .spacer{flex:1}
+      button{background:var(--primary);border:none;color:#fff;padding:8px 12px;border-radius:6px;cursor:pointer}
+      button:hover{background:var(--primary-hover)}
+      input[type="search"]{width:320px;max-width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:#2a2a2a;color:var(--fg)}
+      .hint{color:var(--muted);font-size:12px;margin:4px 0 12px}
+      table{width:100%;border-collapse:collapse}
+      th,td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
+      th{font-weight:600;text-align:left}
+      tr:hover{background:#242424}
+      code{background:#2a2a2a;padding:2px 6px;border-radius:4px}
+      .name{font-weight:600}
+      .desc{font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+      .badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#2f343a;color:#9fb4c8;font-size:12px}
+      .error{background:#3a1f1f;color:#ffb3b3;border:1px solid #5c2b2b;padding:10px;border-radius:6px;margin-bottom:10px}
+      .toolbar{display:flex;gap:8px;align-items:center}
+      .pill{padding:4px 8px;border-radius:999px;background:#2a2a2a;color:#cfcfcf;border:1px solid var(--border);font-size:12px}
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Copilot Connectors</h1>
+      <span class="pill">App-only: ${hasAppOnly ? 'Configured' : 'Not configured'}</span>
+      <div class="spacer"></div>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search by name or ID" aria-label="Search connectors" />
+        ${hasAppOnly ? '<button id="refresh">Refresh</button><button id="clearSecret">Clear Secret</button>' : '<button id="setSecret">Set Secret</button>'}
+      </div>
+    </header>
+
+    ${errorText ? `<div class="error">${errorText}</div>` : ''}
+    <div class="hint">Click a row\'s Copy ID button to copy the connector ID to your clipboard.</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>ID</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        ${rows}
+      </tbody>
+    </table>
+
+    <script>
+      const vscode = acquireVsCodeApi();
+      const state = { connectors: ${JSON.stringify(connectors)} };
+
+      function filterRows(q){
+        q = (q||'').toLowerCase();
+        const rows = document.querySelectorAll('#rows tr');
+        rows.forEach(r=>{
+          const name = r.getAttribute('data-name')||'';
+          const id = r.getAttribute('data-id')||'';
+          r.style.display = (name.includes(q) || id.includes(q)) ? '' : 'none';
+        });
+      }
+
+      document.getElementById('search').addEventListener('input', (e)=>{
+        filterRows(e.target.value);
+      });
+
+      document.querySelectorAll('.copy-btn').forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          const idx = e.currentTarget.getAttribute('data-idx');
+          const item = state.connectors[Number(idx)];
+          if(item){ vscode.postMessage({ command: 'copyConnectorId', id: item.id }); }
+        });
+      });
+
+      const refresh = document.getElementById('refresh');
+      if(refresh){ refresh.addEventListener('click', ()=> vscode.postMessage({ command: 'refresh' })); }
+
+      const setSecret = document.getElementById('setSecret');
+      if(setSecret){ setSecret.addEventListener('click', ()=> vscode.postMessage({ command: 'setSecret' })); }
+
+      const clearSecret = document.getElementById('clearSecret');
+      if(clearSecret){ clearSecret.addEventListener('click', ()=> vscode.postMessage({ command: 'clearSecret' })); }
+    </script>
+  </body>
+  </html>
+  `;
+}
+
 // Add this function before the activate function
 async function generateInstructions(config: LLMConfig, agentDescription: string): Promise<string> {
   const url = config.endpointType === 'azure' ? config.endpointUrl : 'https://api.openai.com/v1/chat/completions';
@@ -310,7 +515,7 @@ async function generateInstructions(config: LLMConfig, agentDescription: string)
     max_tokens: config.maxTokens
   };
 
-  const response = await axios.post(url, payload, { headers });
+  const response = await axios.post<ChatCompletionResponse>(url, payload, { headers });
   return response.data.choices[0].message.content;
 }
 
@@ -356,10 +561,10 @@ export function activate(context: vscode.ExtensionContext) {
         const response = await sendLLMRequest(inputText, llmConfig);
         console.log("Raw response:", response.data);
 
-        const messageContent = response.data.choices[0].message.content;
+        const messageContent: string = response.data.choices?.[0]?.message?.content ?? '';
         console.log("Message content:", messageContent);
 
-        let parsedResult;
+        let parsedResult: { clarityScore?: number; corrections?: Correction[] } | undefined;
         try {
           parsedResult = JSON.parse(messageContent);
         } catch (err: any) {
@@ -367,8 +572,8 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        const clarityScore = parsedResult.clarityScore || 0;
-        const corrections = parsedResult.corrections || [];
+        const clarityScore = parsedResult?.clarityScore || 0;
+        const corrections = parsedResult?.corrections || [];
         const analysisData: AnalysisData = { clarityScore, corrections };
 
         const panel = vscode.window.createWebviewPanel(
@@ -380,9 +585,10 @@ export function activate(context: vscode.ExtensionContext) {
 
         panel.webview.html = getWebviewContent(analysisData);
 
-        panel.webview.onDidReceiveMessage(async message => {
+        panel.webview.onDidReceiveMessage(async (message: { command: string; index?: number }) => {
           if (message.command === 'applyCorrection') {
-            const correction = corrections[message.index];
+            const idx = typeof message.index === 'number' ? message.index : -1;
+            const correction = corrections[idx];
             if (!correction) {
               vscode.window.showErrorMessage("Invalid correction index.");
               return;
@@ -403,7 +609,7 @@ export function activate(context: vscode.ExtensionContext) {
                   vscode.window.showWarningMessage("The ambiguous phrase was not found in the document.");
                   return;
                 }
-                const success = await activeEditor.edit(editBuilder => {
+                const success = await activeEditor.edit((editBuilder: vscode.TextEditorEdit) => {
                   const start = doc.positionAt(0);
                   const end = doc.positionAt(fullText.length);
                   editBuilder.replace(new vscode.Range(start, end), newText);
@@ -486,7 +692,7 @@ export function activate(context: vscode.ExtensionContext) {
           editor.document.positionAt(editor.document.getText().length)
         );
         
-        await editor.edit(editBuilder => {
+        await editor.edit((editBuilder: vscode.TextEditorEdit) => {
           editBuilder.replace(fullRange, newContent);
         });
         
@@ -499,6 +705,113 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   context.subscriptions.push(generateDisposable);
+
+  // Secret commands for Graph client secret
+  const setSecretCmd = vscode.commands.registerCommand('agentInstructor.setGraphClientSecret', async () => {
+    const secret = await vscode.window.showInputBox({
+      prompt: 'Enter Microsoft Graph client secret',
+      ignoreFocusOut: true,
+      password: true,
+      placeHolder: 'Client secret'
+    });
+    if (!secret) { return; }
+    await context.secrets.store(GRAPH_SECRET_KEY, secret);
+    vscode.window.showInformationMessage('Graph client secret saved.');
+  });
+  context.subscriptions.push(setSecretCmd);
+
+  const clearSecretCmd = vscode.commands.registerCommand('agentInstructor.clearGraphClientSecret', async () => {
+    await context.secrets.delete(GRAPH_SECRET_KEY);
+    vscode.window.showInformationMessage('Graph client secret cleared.');
+  });
+  context.subscriptions.push(clearSecretCmd);
+
+  // NEW: Copilot Connectors command (app-only only, auto-load on open)
+  const connectorsDisposable = vscode.commands.registerCommand('agentInstructor.copilotConnectors', async () => {
+    let connectors: CopilotConnector[] = [];
+    let lastError: string | undefined;
+
+    async function hasAppOnlyConfigured(): Promise<boolean> {
+      const { tenantId, clientId } = getGraphClientConfig();
+      const s = await context.secrets.get(GRAPH_SECRET_KEY);
+      return !!(tenantId && clientId && s);
+    }
+
+    let hasAppOnly = await hasAppOnlyConfigured();
+
+    const panel = vscode.window.createWebviewPanel(
+      'agentInstructorConnectors',
+      'Copilot Connectors',
+      vscode.ViewColumn.Two,
+      { enableScripts: true }
+    );
+
+    const render = () => {
+      panel.webview.html = getCopilotConnectorsWebview(connectors, hasAppOnly, lastError);
+    };
+
+    async function refreshAppOnly() {
+      lastError = undefined;
+      try {
+        const token = await getAppOnlyAccessToken(context);
+        await vscode.window.withProgress({
+          location: vscode.ProgressLocation.Window,
+          title: 'Loading Copilot connectors...'
+        }, async () => {
+          connectors = await fetchCopilotConnectors(token);
+        });
+      } catch (e: any) {
+        const msg = e?.response?.data?.error?.message || e?.message || String(e);
+        lastError = `Failed to load connectors. ${msg}`;
+        connectors = [];
+      } finally {
+        hasAppOnly = await hasAppOnlyConfigured();
+        render();
+      }
+    }
+
+    // Initial render and auto-load if configured
+    render();
+    if (hasAppOnly) {
+      // Auto-load connectors if secret is present
+      await refreshAppOnly();
+    }
+
+    panel.webview.onDidReceiveMessage(async (msg: { command: string; id?: string }) => {
+      switch (msg.command) {
+        case 'refresh':
+          if (await hasAppOnlyConfigured()) {
+            await refreshAppOnly();
+          } else {
+            render();
+          }
+          break;
+        case 'copyConnectorId':
+          if (typeof msg.id === 'string') {
+            await vscode.env.clipboard.writeText(msg.id);
+            vscode.window.showInformationMessage('Connector ID copied to clipboard');
+          }
+          break;
+        case 'setSecret':
+          await vscode.commands.executeCommand('agentInstructor.setGraphClientSecret');
+          hasAppOnly = await hasAppOnlyConfigured();
+          if (hasAppOnly) {
+            await refreshAppOnly();
+          } else {
+            render();
+          }
+          break;
+        case 'clearSecret':
+          await vscode.commands.executeCommand('agentInstructor.clearGraphClientSecret');
+          hasAppOnly = await hasAppOnlyConfigured();
+          connectors = [];
+          render();
+          break;
+      }
+    });
+  });
+
+  context.subscriptions.push(connectorsDisposable);
 }
 
 export function deactivate() {

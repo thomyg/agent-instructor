@@ -13,7 +13,14 @@
     "vscode": "^1.60.0"
   },
   "activationEvents": [
-    "onCommand:agentInstructor.analyze"
+    "onCommand:agentInstructor.analyze",
+    "onCommand:agentInstructor.generate",
+    "onCommand:agentInstructor.copilotConnectors",
+    "onCommand:agentInstructor.setGraphClientSecret",
+    "onCommand:agentInstructor.clearGraphClientSecret"
+  ],
+  "extensionDependencies": [
+    "ms-vscode.azure-account"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -25,6 +32,18 @@
       {
         "command": "agentInstructor.generate",
         "title": "Agent Instructor: Generate Instructions"
+      },
+      {
+        "command": "agentInstructor.copilotConnectors",
+        "title": "Agent Instructor: List Copilot Connectors"
+      },
+      {
+        "command": "agentInstructor.setGraphClientSecret",
+        "title": "Agent Instructor: Set Graph Client Secret"
+      },
+      {
+        "command": "agentInstructor.clearGraphClientSecret",
+        "title": "Agent Instructor: Clear Graph Client Secret"
       }
     ],
     "configuration": {
@@ -56,6 +75,16 @@
           "description": "Maximum number of tokens to generate in the response",
           "minimum": 1,
           "maximum": 4096
+        },
+        "agentInstructor.graph.tenantId": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Tenant ID for Microsoft Graph app-only authentication (client credentials)."
+        },
+        "agentInstructor.graph.clientId": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Client ID (Application ID) for Microsoft Graph app-only authentication. The client secret is stored securely via SecretStorage."
         }
       }
     }
@@ -66,7 +95,11 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "watch:tsc": "tsc -w",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch-tests": "npm run watch:tsc",
+    "graph:appOnly": "node scripts/test-graph-app-only.js"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
